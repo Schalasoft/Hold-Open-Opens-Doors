@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Manifest>
+  <identifier>Hold_Open_Opens_Doors</identifier>
+  <version>1.0.0.6</version> <!-- Remember to change assembly version on update -->
+  <dependencies>
+    <li>HugsLib</li>
+  </dependencies>
+  <incompatibleWith>
+  </incompatibleWith>
+  <loadBefore>
+  </loadBefore>
+  <loadAfter>
+    <li>HugsLib</li>
+  </loadAfter>
+  <manifestUri>https://raw.githubusercontent.com/PopeSnowball/Hold-Open-Opens-Doors/master/Manifest.xml</manifestUri>
+  <downloadUri>https://steamcommunity.com/id/popesnowball100/myworkshopfiles/?appid=294100</downloadUri>
+</Manifest>

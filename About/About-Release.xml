@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+	<name>Hold Open Opens Doors</name>
+	<author>Pope Snowball</author>
+  <targetVersion>1.0.2059</targetVersion>
+  <description>"Hold Open" will immediately open/close doors, instead of waiting for a colonist to do it. Settings allow disabling of mod by door type and whether or not a powered door is receiving power.</description>
+  <url>https://steamcommunity.com/sharedfiles/filedetails/?id=1545144173</url>
+</ModMetaData>

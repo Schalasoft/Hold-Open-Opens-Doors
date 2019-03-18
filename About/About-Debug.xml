@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+	<name>Hold Open Opens Doors - Dev Build</name>
+	<author>Pope Snowball</author>
+  <targetVersion>1.0.2059</targetVersion>
+  <description>"Hold Open" will immediately open/close doors, instead of waiting for a colonist to do it. Settings allow disabling of mod by door type and whether or not a powered door is receiving power.
+  (This is the dev version of Hold Open Opens Doors. The release version of About.xml is available for editing at About/About-Release.xml. Edits made on this file or on the temporary About/About.xml won't show up on the release version. Use VisualStudio to build a "Release" version of this mod when ready to upload your mod!)</description>
+	<url>https://steamcommunity.com/sharedfiles/filedetails/?id=1545144173</url>
+</ModMetaData>
