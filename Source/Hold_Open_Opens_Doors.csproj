@@ -79,6 +79,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Door_Console_Def.cs" />
+    <Compile Include="Door_Console.cs" />
+    <Compile Include="Door_Console_Job_Driver.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="ModSettings.cs" />
     <Compile Include="Hold_Open_Opens_Doors.cs" />
