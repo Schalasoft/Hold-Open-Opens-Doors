@@ -75,7 +75,7 @@ namespace HOOD
 
                     // Get the values of the fields and properties
                     CompPowerTrader powerComp = null;
-                    if(powerComp_Field != null) powerComp = (CompPowerTrader)powerComp_Field.GetValue(__instance); // We may not have a power comp breh
+                    if(powerComp_Field != null) powerComp = (CompPowerTrader)powerComp_Field.GetValue(__instance); // We may not have a power comp
                     bool HoldOpen = false; // Assume false
                     if (holdOpenInt_Field != null) HoldOpen = (bool)holdOpenInt_Field.GetValue(__instance);
                     bool Open = false; // Assume false
@@ -125,8 +125,8 @@ namespace HOOD
                         if (pawn.pather != null
                             && pawn.pather.Destination != null
                             && pawn.pather.nextCell != null
-                            && (pawn.pather.Destination.Equals(building.Position) || pawn.pather.nextCell.Equals(building.Position))) // this may work??
-                            // This may need adjusted to be for exactly what door the pawn is trying to open/close. This may cause bugs!!! Fix me
+                            && (pawn.pather.Destination.Equals(building.Position) || pawn.pather.nextCell.Equals(building.Position)))
+                            // This may need adjusted to be for exactly what door the pawn is trying to open/close - this may need refactored
                             {
                                 return true;
                             }
@@ -170,7 +170,7 @@ namespace HOOD
 
             L.Log("Invisible Door count: " + invisibleDoors.Count);
 
-            // Action jecrells god damn invisible doors, hidden behind his door handler
+            // Action jecrells invisible doors, hidden behind his door handler
             foreach (Thing invisibleDoor in invisibleDoors)
             {
                 ActionCustomDoor(invisibleDoor, open, lastFriendlyTouch, ticksUntilClose);
@@ -246,9 +246,9 @@ namespace HOOD
                         }
                     }
 
-                    // doors with 2+ can fuck off, Jecrells only use up to 2 unvisible doors anyway
+                    // doors with 2+ should be ignored, Jecrells only use up to 2 unvisible doors anyway
                     if (invisibleDoors.Count >= 2)
-                        return invisibleDoors; // we're done here boys
+                        return invisibleDoors; // we're done here
                 }
             }
 
