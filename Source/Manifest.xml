@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Manifest>
   <identifier>Hold_Open_Opens_Doors</identifier>
-  <version>1.0.0.6</version> <!-- Remember to change assembly version on update -->
+  <version>1.0.0.7</version> <!-- Remember to change assembly version on update -->
   <dependencies>
     <li>HugsLib</li>
   </dependencies>

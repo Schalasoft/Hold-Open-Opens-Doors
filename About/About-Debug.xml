@@ -1,9 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
+  <packageId>Schalasoft.HoldOpenOpensDoors</packageId>
 	<name>Hold Open Opens Doors - Dev Build</name>
 	<author>Pope Snowball</author>
-  <targetVersion>1.0.2059</targetVersion>
+  <!--<targetVersion>1.1</targetVersion>-->
+  <supportedVersions>
+    <li>1.1</li>
+  </supportedVersions>
   <description>"Hold Open" will immediately open/close doors, instead of waiting for a colonist to do it. Settings allow disabling of mod by door type and whether or not a powered door is receiving power.
   (This is the dev version of Hold Open Opens Doors. The release version of About.xml is available for editing at About/About-Release.xml. Edits made on this file or on the temporary About/About.xml won't show up on the release version. Use VisualStudio to build a "Release" version of this mod when ready to upload your mod!)</description>
 	<url>https://steamcommunity.com/sharedfiles/filedetails/?id=1545144173</url>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+      <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+    </li>
+  </modDependencies>
+
+  <!-- HugsLib 5.0.0 Update -->
+  <!-- Note, that including this file is optional. When not found, the checker will still make sure the library is installed, 
+	but no minimum version will be required -->
+
+  <!-- Optional. This specifies the version of your mod for the library. Otherwise, the version of your mod's assembly will be used. -->
+  <!--<overrideVersion>1.1</overrideVersion>-->
+  <!-- Optional. Use this to specify the version of HugsLib you are targeting.
+	See https://github.com/UnlimitedHugs/RimworldHugsLib/releases for the current version of the library.-->
+  <!--<requiredLibraryVersion>5.0.0</requiredLibraryVersion>-->
 </ModMetaData>
