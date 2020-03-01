@@ -1,6 +1,6 @@
 ﻿using Verse;
 using RimWorld;
-using Harmony;
+using HarmonyLib;
 using System.Reflection;
 using System;
 using System.Collections.Generic;
@@ -15,15 +15,17 @@ namespace HOOD
         static Core()
         {
             // Force enable logging here (settings are not loaded at the point of patching)
-            L.loggingEnabled = true;
+            // Disable logging here for the guy that found it annoying
+            //L.loggingEnabled = true;
 
-            L.Log("I am become L the logger of words!");
-            L.Log("Patching... hold my parka");
+            //L.Log("I am become L the logger of words!");
+            //L.Log("Patching... hold my parka");
+            var harmony = new Harmony("com.github.harmony.rimworld.mod.Hold_Open_Opens_Doors");
 
-            var harmony = HarmonyInstance.Create("com.github.harmony.rimworld.mod.Hold_Open_Opens_Doors");
+            //var harmony = HarmonyInstance.Create("com.github.harmony.rimworld.mod.Hold_Open_Opens_Doors");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-            L.Log("Patching complete!");
+            //L.Log("Patching complete!");
 
             // End force enable logging
             L.loggingEnabled = false;
