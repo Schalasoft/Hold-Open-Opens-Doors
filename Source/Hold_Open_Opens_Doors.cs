@@ -254,8 +254,8 @@ namespace HOOD
                 }
             }
 
-            Pawn pawn = Find.CurrentMap.mapPawns.AllPawns.First();
-            Building_Door door = building as Building_Door;
+            //Pawn pawn = Find.CurrentMap.mapPawns.AllPawns.First();
+            //Building_Door door = building as Building_Door;
 
 
             return invisibleDoors;
