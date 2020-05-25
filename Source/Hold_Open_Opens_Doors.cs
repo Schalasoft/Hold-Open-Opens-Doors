@@ -14,21 +14,8 @@ namespace HOOD
     {
         static Core()
         {
-            // Force enable logging here (settings are not loaded at the point of patching)
-            // Disable logging here for the guy that found it annoying
-            //L.loggingEnabled = true;
-
-            //L.Log("I am become L the logger of words!");
-            //L.Log("Patching... hold my parka");
             var harmony = new Harmony("com.github.harmony.rimworld.mod.Hold_Open_Opens_Doors");
-
-            //var harmony = HarmonyInstance.Create("com.github.harmony.rimworld.mod.Hold_Open_Opens_Doors");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
-
-            //L.Log("Patching complete!");
-
-            // End force enable logging
-            L.loggingEnabled = false;
         }
     }
 
@@ -38,6 +25,11 @@ namespace HOOD
     [HarmonyPatch("GetGizmos")]
     class Patch_Building : Building
     {
+        private static Building previousDoor = null; // For settings per door
+        private static string previousLog1 = "";     // For action door
+        private static string previousLog2 = "";     // For action door
+
+
         // Postfix onto the GetGizmo method
         public static void Postfix(Building __instance)
         {
@@ -54,7 +46,6 @@ namespace HOOD
                 if (baseDoor != null) type = baseDoor.GetType().BaseType;
 
                 // Set instance to the type for calls to work
-                //__instance = __instance.GetType().BaseType as Building_Door;
                 inheritedDoor = true;
             }
 
@@ -64,16 +55,11 @@ namespace HOOD
                 // If user has not disallowed the door
                 if (!HOODSettings.disableOnDoors || (HOODSettings.disableOnDoors && !HOODSettings.disallowedDoors.Contains(doorName)))
                 {
-                    //L.Log("Getting props...");
-
                     // Get properties and fields for checks
-                    var powerComp_Field = type.GetField("powerComp", BindingFlags.Public | BindingFlags.Instance);
-                    var Open_Property = type.GetProperty("Open", BindingFlags.Public | BindingFlags.Instance);
-                    //var ticksUntilClose_Field = type.GetField("ticksUntilClose", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var holdOpenInt_Field = type.GetField("holdOpenInt", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var blockedOpenMomentary_Property = type.GetProperty("BlockedOpenMomentary", BindingFlags.Public | BindingFlags.Instance);
-
-                   // L.Log("Got prop refs");
+                    var powerComp_Field = AccessTools.Field(type, "powerComp");
+                    var Open_Property = AccessTools.Field(type, "Open");
+                    var holdOpenInt_Field = AccessTools.Field(type, "holdOpenInt");
+                    var blockedOpenMomentary_Property = AccessTools.Field(type, "BlockedOpenMomentary");
 
                     // Get the values of the fields and properties
                     CompPowerTrader powerComp = null;
@@ -81,30 +67,41 @@ namespace HOOD
                     bool HoldOpen = false; // Assume false
                     if (holdOpenInt_Field != null) HoldOpen = (bool)holdOpenInt_Field.GetValue(__instance);
                     bool Open = false; // Assume false
-                    if (Open_Property != null) Open = (bool)Open_Property.GetValue(__instance, new object[0]);
+                    if (Open_Property != null) Open = (bool)Open_Property.GetValue(__instance);
                     bool blockedOpenMomentary = false; // Assume it isn't
-                    if(blockedOpenMomentary_Property != null) blockedOpenMomentary = (bool)blockedOpenMomentary_Property.GetValue(__instance, new object[0]);
-
-                    //L.Log("Got prop vals");
+                    if(blockedOpenMomentary_Property != null) blockedOpenMomentary = (bool)blockedOpenMomentary_Property.GetValue(__instance);
 
                     // Check the door for power; true if door is receiving power or door does not need power
                     bool hasPower = powerComp != null ? powerComp.PowerOn : true;
 
-                    L.Log("Props: " + hasPower + "-" + HoldOpen + "-" + Open + "-" + blockedOpenMomentary);
+                    // Door is null or different than the last, update previous door
+                    if (previousDoor == null || !previousDoor.Equals(__instance))
+                    {
+                        // Log once on selecting a door
+                        L.Log("Door properties: " + "hasPower(" + hasPower + ") - " + "HoldOpen(" + HoldOpen + ") - "
+                                + "Open(" + Open + ") - " + "blockedOpenMomentary(" + blockedOpenMomentary + ") - " + "inheritedDoor: (" + inheritedDoor + ")"
+                                + "\n"
+                                + "HOOD settings: " + "checkPower(" + HOODSettings.checkPower + ") - " + "disableOnDoors (" + HOODSettings.disableOnDoors + ") - "
+                                + "dissallowedDoors (" + string.Join(",", HOODSettings.disallowedDoors) + ")");
+
+                        previousDoor = __instance;
+                    }
 
                     // If user has disabled checking for power
                     if (!HOODSettings.checkPower || (HOODSettings.checkPower && hasPower))
                     {
+                        bool? openState = null;
+                        int ticksUntilClose = 30;
+                        int lastFriendlyTouch = 110;
+
                         // Door should be opened/closed
                         if (HoldOpen && !Open)
-                        {
-                            ActionDoor(__instance, true, 110, 110, inheritedDoor);
-                        }
-                        else if (!HoldOpen && Open)
-                        {
-                            if (!blockedOpenMomentary)
-                                ActionDoor(__instance, false, 110, 110, inheritedDoor); // Don't close the door if it is blocked open momentarily
-                        }
+                            openState = true;
+                        else if (!HoldOpen && Open && !blockedOpenMomentary)
+                            openState = false;
+
+                        if (openState.HasValue)
+                            ActionDoor(__instance, openState.Value, lastFriendlyTouch, ticksUntilClose, inheritedDoor);
                     }
                 }
             }
@@ -140,155 +137,34 @@ namespace HOOD
         }
 
         // Takes a building to allow for the possibility of overriding of Building_Door and mods not inheriting from Building_Door
-        public static void ActionDoor(Building building, bool open, int lastFriendlyTouch, int ticksUntilClose, bool inheritedDoor)
+        public static void ActionDoor(Building door, bool open, int lastFriendlyTouch, int ticksUntilCloseDoor, bool inheritedDoor)
         {
-            L.Log("SetBuildingProperties - " + building.def.defName + " ---- " + open + " ---- " + lastFriendlyTouch);
+            // Not using the button press of hold open so need to stop excess logging by checking the previous values, doesn't work for consecutive open/closes on same door which is not ideal (look at this later)
+            string log1 = "SetBuildingProperties - " + door.def.defName + " ---- " + open + " ---- " + lastFriendlyTouch;
+            if (!previousLog1.Equals(log1))
+                L.Log(log1);
+            previousLog1 = log1;
 
-            Type buildingType = building.GetType();
+            Type buildingType = door.GetType();
             if (inheritedDoor) buildingType = buildingType.BaseType; // Use base type
 
-            // Flag the door to open/closed
-            var openInt = buildingType.GetField("openInt", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (openInt != null) openInt.SetValue(building, open);
+            // Set fields
+            var openInt = AccessTools.Field(buildingType, "openInt");
+            if (openInt != null) openInt.SetValue(door, open);
 
-            // Set the last touched tick so the door reacts
-            var lastFriendlyTouchTick = buildingType.GetField("lastFriendlyTouchTick", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (lastFriendlyTouchTick != null) lastFriendlyTouchTick.SetValue(building, lastFriendlyTouch);
+            var lastFriendlyTouchTick = AccessTools.Field(buildingType, "lastFriendlyTouchTick");
+            if (lastFriendlyTouchTick != null) lastFriendlyTouchTick.SetValue(door, lastFriendlyTouch);
 
-            // Set ticks to close
-            var ticksUntilCloseInt = buildingType.GetField("ticksUntilClose", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (ticksUntilCloseInt != null) lastFriendlyTouchTick.SetValue(building, ticksUntilClose);
+            var ticksUntilClose = AccessTools.Field(buildingType, "ticksUntilClose");
+            if (ticksUntilClose != null) ticksUntilClose.SetValue(door, ticksUntilCloseDoor);
 
-            // can pawn pass
-            /*Pawn pawn = Find.CurrentMap.mapPawns.AllPawns.First();
-            var method = buildingType.GetMethod("PawnCanOpen", BindingFlags.Public | BindingFlags.Instance);
-            method.Invoke(building, new object[] { pawn });
-            //L.Log("method result: " + res);*/
-
-            L.Log("ActionDoor - Actioned a door - " + openInt + " ---- " + lastFriendlyTouchTick + " ---- " + ticksUntilCloseInt);
-
-            // Check for any invisible doors (will return all parts of the door, i.e. invisible doors within double and triple doors etc.)
-            List<Thing> invisibleDoors = GetInvisibleDoors(building);
-
-            L.Log("Invisible Door count: " + invisibleDoors.Count);
-
-            // Action jecrells invisible doors, hidden behind his door handler
-            foreach (Thing invisibleDoor in invisibleDoors)
-            {
-                ActionCustomDoor(invisibleDoor, open, lastFriendlyTouch, ticksUntilClose);
-            }
+            string log2 = "ActionDoor - Actioned a door - " + openInt + " ---- " + lastFriendlyTouchTick + " ---- " + ticksUntilClose;
+            if (!previousLog2.Equals(log2))
+                L.Log(log2);
+            previousLog2 = log2;
 
             // Clear cache
             Find.CurrentMap.reachability.ClearCache();
-        }
-
-        // Gets the invisible doors associated with the passed in door (used for Jecrells mod)
-        private static List<Thing> GetInvisibleDoors(Building building)
-        {
-            List<Thing> invisibleDoors = new List<Thing>();
-            Thing invisibleDoor = null;
-            string parentDoorId = null;
-
-            IEnumerable<Thing> thingsAtCurrentCell = Find.CurrentMap.thingGrid.ThingsAt(building.Position);
-
-            foreach (Thing thing in thingsAtCurrentCell)
-            {
-                bool done = false;
-                //L.Log("Thing at cell: " + thing);
-                if (thing.def.defName.Equals("HeronInvisibleDoor")) // Found it
-                {
-                    L.Log("Found invisible door: " + thing);
-                    invisibleDoor = thing;
-
-                    FieldInfo prop = null;
-                    var dynamo = HOODSettings.DynamicCast(thing);
-                    if (dynamo != null)
-                        prop = dynamo.GetType().GetField("parentDoor", BindingFlags.NonPublic | BindingFlags.Instance);
-
-                    parentDoorId = prop.GetValue(thing).ToString();
-                    invisibleDoors.Add(invisibleDoor);
-
-                    done = true;
-
-                    L.Log("Parent Door ID: " + parentDoorId);
-                }
-
-                if (done) break;
-            }
-
-            // We have 1 invisible door, check if there is another one using the parent
-            if (invisibleDoor != null)
-            {
-                // Check surrounding cells
-                foreach (IntVec3 cell in building.CellsAdjacent8WayAndInside())
-                {
-                    // Check for fancy mod overrides on other things in this cell
-                    // So the click gives us the door, not the invisible door, brilliant, we need to get the invisible door by getting the other "door" on this cell
-                    IEnumerable<Thing> thingsAtCell = Find.CurrentMap.thingGrid.ThingsAt(cell);
-
-                    foreach (Thing thing in thingsAtCell)
-                    {
-                        //L.Log("Thing at cell: " + thing);
-                        if (thing.def.defName.Equals("HeronInvisibleDoor")) // Found an invisible door
-                        {
-                            FieldInfo prop = null;
-                            var dynamo = HOODSettings.DynamicCast(thing);
-                            if (dynamo != null)
-                            {
-                                prop = dynamo.GetType().GetField("parentDoor", BindingFlags.NonPublic | BindingFlags.Instance);
-                            }
-
-                            // Object has a parent door property, and it matches the parent door id we got from the initially clicked door
-                            if (prop != null && prop.GetValue(thing).ToString().Equals(parentDoorId) 
-                                && !thing.GetUniqueLoadID().Equals(invisibleDoor.GetUniqueLoadID())) // ensure we dont add the same door to the list
-                            {
-                                L.Log("Found another invisible door (door is larger than 1x1)");
-                                invisibleDoors.Add(thing);// as Building_Door;
-                            }
-                        }
-                    }
-
-                    // doors with 2+ should be ignored, Jecrells only use up to 2 unvisible doors anyway
-                    if (invisibleDoors.Count >= 2)
-                        return invisibleDoors; // we're done here
-                }
-            }
-
-            //Pawn pawn = Find.CurrentMap.mapPawns.AllPawns.First();
-            //Building_Door door = building as Building_Door;
-
-
-            return invisibleDoors;
-        }
-
-        // Action a custom door (one of Jecrells invisible doors)
-        private static void ActionCustomDoor(Thing invisibleDoor, bool open, int lastFriendlyTouch, int ticksUntilClose)
-        {
-            var dynamo = HOODSettings.DynamicCast(invisibleDoor); // cast the invisible doors thing with fancy dynamo
-            if (dynamo != null)
-            {
-                // This is a handler, so get the base type
-                Type baseType = dynamo.GetType().BaseType;
-
-                // Set the hidden fields
-                var invisibleOpenInt = baseType.GetField("openInt", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (invisibleOpenInt != null)
-                {
-                    //L.Log("Invisible door open state (pre): " + invisibleOpenInt.GetValue(invisibleDoor));
-                    invisibleOpenInt.SetValue(invisibleDoor, open);
-                    //L.Log("Invisible door open state(post): " + invisibleOpenInt.GetValue(invisibleDoor));
-                }
-
-                var invisiblelastFriendlyTouchTick = baseType.GetField("lastFriendlyTouchTick", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (invisiblelastFriendlyTouchTick != null) invisiblelastFriendlyTouchTick.SetValue(invisibleDoor, lastFriendlyTouch);
-
-                // TicksUntilClose to determine when to close the door
-                var invisibleTicksUntilClose = baseType.GetField("ticksUntilClose", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (invisibleTicksUntilClose != null) invisibleTicksUntilClose.SetValue(invisibleDoor, ticksUntilClose);
-
-                // Check what the state of the invisible door variables are
-                L.Log("Actioned an invisible door oooOOoOOOoooOooo - " + invisibleOpenInt + " ---- " + invisiblelastFriendlyTouchTick + " ---- " + invisibleTicksUntilClose);
-            }
         }
     }
 }

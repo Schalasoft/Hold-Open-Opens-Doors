@@ -19,15 +19,16 @@
       <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
       <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
     </li>
+
+    <li>
+      <packageId>UnlimitedHugs.HugsLib</packageId>
+      <displayName>HugsLib</displayName>
+      <downloadUrl>https://github.com/UnlimitedHugs/RimworldHugsLib/releases/latest</downloadUrl>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/818773962</steamWorkshopUrl>
+    </li>
   </modDependencies>
-
-  <!-- HugsLib 5.0.0 Update -->
-  <!-- Note, that including this file is optional. When not found, the checker will still make sure the library is installed, 
-	but no minimum version will be required -->
-
-  <!-- Optional. This specifies the version of your mod for the library. Otherwise, the version of your mod's assembly will be used. -->
-  <!--<overrideVersion>1.1</overrideVersion>-->
-  <!-- Optional. Use this to specify the version of HugsLib you are targeting.
-	See https://github.com/UnlimitedHugs/RimworldHugsLib/releases for the current version of the library.-->
-  <!--<requiredLibraryVersion>5.0.0</requiredLibraryVersion>-->
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>UnlimitedHugs.HugsLib</li>
+  </loadAfter>
 </ModMetaData>
