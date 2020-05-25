@@ -43,13 +43,16 @@
     <Reference Include="%24HugsLibChecker, Version=0.5.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\Steam Modding\Libraries\RimworldHugsLibChecker-master-5.0.0\Mods\HugsLibChecker\Assemblies\$HugsLibChecker.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="0Harmony, Version=2.0.0.8, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\Steam Modding\Libraries\Harmony.2.0.0.8\Release\net35\0Harmony.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="HugsLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -78,9 +81,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Door_Console_Def.cs" />
-    <Compile Include="Door_Console.cs" />
-    <Compile Include="Door_Console_Job_Driver.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="ModSettings.cs" />
     <Compile Include="Hold_Open_Opens_Doors.cs" />
@@ -104,7 +104,7 @@
 echo F|xcopy "$(ProjectDir)..\Source\Manifest.xml" "$(TargetDir)..\About\Manifest.xml" /C /Y /K /Q /D
 echo F|xcopy "$(ProjectDir)..\About\PublishedFileId.txt" "$(TargetDir)..\About\PublishedFileId.txt" /C /Y /K /Q /D
 IF /I "$(ConfigurationName)" == "Release"; echo F|xcopy "$(ProjectDir)..\About\Preview.png" "$(TargetDir)..\About\Preview.png" /S /C /Y /K /Q /D
-IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Assemblies" "$(TargetDir)..\Assemblies" /S /C /Y /K /I /Q /D
+IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Assemblies\Hold_Open_Opens_Doors.dll" "$(TargetDir)..\Assemblies\Hold_Open_Opens_Doors.dll" /S /C /Y /K /I /Q /D
 REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Defs" "$(TargetDir)..\Defs" /S /C /Y /K  /I /Q /D
 REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Patches" "$(TargetDir)..\Patches" /S /C /Y /K  /I /Q /D
 REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Languages" "$(TargetDir)..\Languages" /S /C /Y /K  /I /Q /D
