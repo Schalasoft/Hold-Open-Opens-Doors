@@ -3,7 +3,6 @@ using RimWorld;
 using HarmonyLib;
 using System.Reflection;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace HOOD
@@ -35,19 +34,6 @@ namespace HOOD
         {
             string doorName = __instance.def.defName;
             Type type = __instance.GetType();
-            bool inheritedDoor = false; // true if a mod like LinkedDoors inherits and overrides
-
-            // Check base class in case of mods like LinkedDoors inheriting Building_Door (do before anything else or the objects will not contain the properties)
-            if (__instance.GetType().BaseType == typeof(Building_Door))
-            {
-                type = __instance.GetType().BaseType;
-                //L.Log("Got door base type, mod has inherited Building_Door: " + type);
-                Building_Door baseDoor = __instance as Building_Door;
-                if (baseDoor != null) type = baseDoor.GetType().BaseType;
-
-                // Set instance to the type for calls to work
-                inheritedDoor = true;
-            }
 
             // No pawn interacting
             if (!PawnInteracting(__instance, type))
@@ -57,9 +43,9 @@ namespace HOOD
                 {
                     // Get properties and fields for checks
                     var powerComp_Field = AccessTools.Field(type, "powerComp");
-                    var Open_Property = AccessTools.Field(type, "Open");
+                    var Open_Property = AccessTools.Property(type, "Open");
                     var holdOpenInt_Field = AccessTools.Field(type, "holdOpenInt");
-                    var blockedOpenMomentary_Property = AccessTools.Field(type, "BlockedOpenMomentary");
+                    var blockedOpenMomentary_Property = AccessTools.Property(type, "BlockedOpenMomentary");
 
                     // Get the values of the fields and properties
                     CompPowerTrader powerComp = null;
@@ -79,7 +65,7 @@ namespace HOOD
                     {
                         // Log once on selecting a door
                         L.Log("Door properties: " + "hasPower(" + hasPower + ") - " + "HoldOpen(" + HoldOpen + ") - "
-                                + "Open(" + Open + ") - " + "blockedOpenMomentary(" + blockedOpenMomentary + ") - " + "inheritedDoor: (" + inheritedDoor + ")"
+                                + "Open(" + Open + ") - " + "blockedOpenMomentary(" + blockedOpenMomentary + ") - " + "type(" + type + ")"
                                 + "\n"
                                 + "HOOD settings: " + "checkPower(" + HOODSettings.checkPower + ") - " + "disableOnDoors (" + HOODSettings.disableOnDoors + ") - "
                                 + "dissallowedDoors (" + string.Join(",", HOODSettings.disallowedDoors) + ")");
@@ -101,7 +87,7 @@ namespace HOOD
                             openState = false;
 
                         if (openState.HasValue)
-                            ActionDoor(__instance, openState.Value, lastFriendlyTouch, ticksUntilClose, inheritedDoor);
+                            ActionDoor(__instance, type, openState.Value, lastFriendlyTouch, ticksUntilClose);
                     }
                 }
             }
@@ -112,7 +98,7 @@ namespace HOOD
         {
             bool pawnInteracting = false;
 
-            var holdOpenInt_Field = type.GetField("holdOpenInt", BindingFlags.NonPublic | BindingFlags.Instance);
+            var holdOpenInt_Field = AccessTools.Field(type, "holdOpenInt");
             if (holdOpenInt_Field != null) // Avoid doing this on any structure other than a one with a hold open field
             {
                 // Check adjacent cells for pawns trying to open the door
@@ -137,7 +123,7 @@ namespace HOOD
         }
 
         // Takes a building to allow for the possibility of overriding of Building_Door and mods not inheriting from Building_Door
-        public static void ActionDoor(Building door, bool open, int lastFriendlyTouch, int ticksUntilCloseDoor, bool inheritedDoor)
+        public static void ActionDoor(Building door, Type type, bool open, int lastFriendlyTouch, int ticksUntilCloseDoor)
         {
             // Not using the button press of hold open so need to stop excess logging by checking the previous values, doesn't work for consecutive open/closes on same door which is not ideal (look at this later)
             string log1 = "SetBuildingProperties - " + door.def.defName + " ---- " + open + " ---- " + lastFriendlyTouch;
@@ -145,17 +131,14 @@ namespace HOOD
                 L.Log(log1);
             previousLog1 = log1;
 
-            Type buildingType = door.GetType();
-            if (inheritedDoor) buildingType = buildingType.BaseType; // Use base type
-
             // Set fields
-            var openInt = AccessTools.Field(buildingType, "openInt");
+            var openInt = AccessTools.Field(type, "openInt");
             if (openInt != null) openInt.SetValue(door, open);
 
-            var lastFriendlyTouchTick = AccessTools.Field(buildingType, "lastFriendlyTouchTick");
+            var lastFriendlyTouchTick = AccessTools.Field(type, "lastFriendlyTouchTick");
             if (lastFriendlyTouchTick != null) lastFriendlyTouchTick.SetValue(door, lastFriendlyTouch);
 
-            var ticksUntilClose = AccessTools.Field(buildingType, "ticksUntilClose");
+            var ticksUntilClose = AccessTools.Field(type, "ticksUntilClose");
             if (ticksUntilClose != null) ticksUntilClose.SetValue(door, ticksUntilCloseDoor);
 
             string log2 = "ActionDoor - Actioned a door - " + openInt + " ---- " + lastFriendlyTouchTick + " ---- " + ticksUntilClose;
