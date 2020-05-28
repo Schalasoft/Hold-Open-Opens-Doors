@@ -11,13 +11,13 @@
     <AssemblyName>Hold_Open_Opens_Doors</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
+    <Deterministic>true</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>false</DebugSymbols>
     <DebugType>none</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Hold Open Opens Doors\Assemblies\</OutputPath>
+    <OutputPath>..\Assemblies\</OutputPath>
     <DefineConstants>
     </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -28,7 +28,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\1545144173\Assemblies\</OutputPath>
+    <OutputPath>..\Assemblies\</OutputPath>
     <DefineConstants>
     </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -40,45 +40,9 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="%24HugsLibChecker, Version=0.5.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Steam Modding\Libraries\RimworldHugsLibChecker-master-5.0.0\Mods\HugsLibChecker\Assemblies\$HugsLibChecker.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="0Harmony, Version=2.0.0.8, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Steam Modding\Libraries\Harmony.2.0.0.8\Release\net35\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="HugsLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\..\Steam Modding\Libraries\RimworldHugsLib-6.0.1\Mods\HugsLib\Assemblies\HugsLib.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
-    <None Include="..\About\About-Debug.xml">
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="..\About\About-Release.xml">
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="..\About\Preview.png" />
-    <None Include="..\Defs\**" />
-    <None Include="..\Languages\**" />
-    <None Include="..\Patches\**" />
-    <Reference Include="UnityEngine">
-      <HintPath>..\..\..\..\..\..\..\..\Steam Modding\Libraries\RimWorld Core\UnityEngine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.1.2647" />
+    <PackageReference Include="Lib.Harmony" Version="2.0.1" ExcludeAssets="runtime" />
+    <PackageReference Include="UnlimitedHugs.Rimworld.HugsLib" Version="7.2.1" ExcludeAssets="runtime" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Logger.cs" />
@@ -87,29 +51,21 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="About.xml" />
-    <Content Include="Manifest.xml" />
+    <ContentWithTargetPath Include="..\About\**;..\Defs\**;..\Patches\**;..\Languages\**;..\Sounds\**;..\Textures\**" Exclude="..\About\About*.xml">
+      <!-- $([System.String]::new('%(RelativeDir)').Substring(3)) is a trick to strip the ..\ from %(RelativeDir) -->
+      <Link>$([System.String]::new('%(RelativeDir)').Substring(3))%(Filename)%(Extension)</Link>
+      <TargetPath>..\$([System.String]::new('%(RelativeDir)').Substring(3))%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </ContentWithTargetPath>
+    <ContentWithTargetPath Include="..\About\About-*.xml">
+      <Link>About\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <TargetPath Condition="'About-$(Configuration)'==%(Filename)">..\About\About.xml</TargetPath>
+      <CopyToOutputDirectory Condition="'About-$(Configuration)'==%(Filename)">Always</CopyToOutputDirectory>
+    </ContentWithTargetPath>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PreBuildEvent>
-    </PreBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
     <StartAction>Program</StartAction>
     <StartProgram>$(SolutionDir)..\..\RimWorldWin.exe</StartProgram>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PostBuildEvent>echo F|xcopy "$(ProjectDir)..\About\About-$(ConfigurationName).xml" "$(TargetDir)..\About\About.xml" /C /Y /K /Q /D
-echo F|xcopy "$(ProjectDir)..\Source\Manifest.xml" "$(TargetDir)..\About\Manifest.xml" /C /Y /K /Q /D
-echo F|xcopy "$(ProjectDir)..\About\PublishedFileId.txt" "$(TargetDir)..\About\PublishedFileId.txt" /C /Y /K /Q /D
-IF /I "$(ConfigurationName)" == "Release"; echo F|xcopy "$(ProjectDir)..\About\Preview.png" "$(TargetDir)..\About\Preview.png" /S /C /Y /K /Q /D
-IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Assemblies\Hold_Open_Opens_Doors.dll" "$(TargetDir)..\Assemblies\Hold_Open_Opens_Doors.dll" /S /C /Y /K /I /Q /D
-REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Defs" "$(TargetDir)..\Defs" /S /C /Y /K  /I /Q /D
-REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Patches" "$(TargetDir)..\Patches" /S /C /Y /K  /I /Q /D
-REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Languages" "$(TargetDir)..\Languages" /S /C /Y /K  /I /Q /D
-REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Sounds" "$(TargetDir)..\Sounds" /S /C /Y /K  /I /Q /D
-REM IF /I "$(ConfigurationName)" == "Release"; xcopy "$(ProjectDir)..\Textures" "$(TargetDir)..\Textures" /S /C /Y /K /I /Q /D
-REM IF /I "$(ConfigurationName)" == "Release"; IF EXIST "$(ProjectDir)..\LICENSE"; copy "$(ProjectDir)..\LICENSE" "$(TargetDir)..\LICENSE" /Y</PostBuildEvent>
   </PropertyGroup>
 </Project>
