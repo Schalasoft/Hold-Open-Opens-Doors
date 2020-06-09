@@ -3,6 +3,7 @@ using RimWorld;
 using HarmonyLib;
 using System.Reflection;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace HOOD
@@ -18,25 +19,57 @@ namespace HOOD
         }
     }
 
-    // Main entry point for current map
-    // Passthrough postfix to change effect of button delegate
-    [HarmonyPatch(typeof(Building))]
-    [HarmonyPatch("GetGizmos")]
-    class Patch_Building : Building
+    [HarmonyPatch(typeof(GizmoGridDrawer))]
+    [HarmonyPatch("DrawGizmoGrid")]
+    class Patch_GizmoGridDrawer
     {
-        private static Building previousDoor = null; // For settings per door
-        private static string previousLog1 = "";     // For action door
-        private static string previousLog2 = "";     // For action door
-
-
-        // Postfix onto the GetGizmo method
-        public static void Postfix(Building __instance)
+        // DrawGizmoGrid is called twice so we only want to add each delegate once
+        private static bool doOnce = true;
+        private static void Prefix(IEnumerable<Gizmo> gizmos)
         {
-            string doorName = __instance.def.defName;
-            Type type = __instance.GetType();
+            if (doOnce)
+            {
+                // Not ideal getting the selected buildings that are likely doors each call
+                IEnumerable<Building> buildings = Find.Selector.SelectedObjects.Where(obj => AccessTools.Field(obj.GetType(), "holdOpenInt") != null).OfType<Building>();
+                var enumerator = buildings.GetEnumerator();
+                enumerator.MoveNext();
+
+                // Find and replace command toggle for Hold Open gizmo
+                foreach (Gizmo gizmo in gizmos)
+                {
+                    // Replace delegate for Hold Open
+                    Command_Toggle commandToggle = gizmo as Command_Toggle;
+                    if (commandToggle != null && commandToggle.icon == TexCommand.HoldOpen)
+                    {
+                        // Append to the toggle action
+                        Action customToggleAction = delegate ()
+                        {
+                            // Call HOOD code
+                            HoldOpenOpensDoors(enumerator.Current);
+                            enumerator.MoveNext();
+                        };
+                        commandToggle.toggleAction += customToggleAction;
+                    }
+                }
+
+                doOnce = false;
+            }
+            else
+            {
+                doOnce = true;
+            }
+        }
+
+        public static void HoldOpenOpensDoors(Building door)
+        {
+            // Get door name
+            string doorName = door.def.defName;
+
+            // Get type
+            Type type = door.GetType();
 
             // No pawn interacting
-            if (!PawnInteracting(__instance, type))
+            if (!PawnInteracting(door, type))
             {
                 // If user has not disallowed the door
                 if (!HOODSettings.disableOnDoors || (HOODSettings.disableOnDoors && !HOODSettings.disallowedDoors.Contains(doorName)))
@@ -49,45 +82,47 @@ namespace HOOD
 
                     // Get the values of the fields and properties
                     CompPowerTrader powerComp = null;
-                    if(powerComp_Field != null) powerComp = (CompPowerTrader)powerComp_Field.GetValue(__instance); // We may not have a power comp
-                    bool HoldOpen = false; // Assume false
-                    if (holdOpenInt_Field != null) HoldOpen = (bool)holdOpenInt_Field.GetValue(__instance);
-                    bool Open = false; // Assume false
-                    if (Open_Property != null) Open = (bool)Open_Property.GetValue(__instance);
-                    bool blockedOpenMomentary = false; // Assume it isn't
-                    if(blockedOpenMomentary_Property != null) blockedOpenMomentary = (bool)blockedOpenMomentary_Property.GetValue(__instance);
+                    if (powerComp_Field != null) powerComp = (CompPowerTrader)powerComp_Field.GetValue(door); // We may not have a power comp
+                    bool HoldOpen = false;
+                    if (holdOpenInt_Field != null) HoldOpen = (bool)holdOpenInt_Field.GetValue(door);
+                    bool Open = false;
+                    if (Open_Property != null) Open = (bool)Open_Property.GetValue(door);
+                    bool blockedOpenMomentary = false;
+                    if (blockedOpenMomentary_Property != null) blockedOpenMomentary = (bool)blockedOpenMomentary_Property.GetValue(door);
 
                     // Check the door for power; true if door is receiving power or door does not need power
                     bool hasPower = powerComp != null ? powerComp.PowerOn : true;
 
-                    // Door is null or different than the last, update previous door
-                    if (previousDoor == null || !previousDoor.Equals(__instance))
-                    {
-                        // Log once on selecting a door
-                        L.Log("Door properties: " + "hasPower(" + hasPower + ") - " + "HoldOpen(" + HoldOpen + ") - "
-                                + "Open(" + Open + ") - " + "blockedOpenMomentary(" + blockedOpenMomentary + ") - " + "type(" + type + ")"
-                                + "\n"
-                                + "HOOD settings: " + "checkPower(" + HOODSettings.checkPower + ") - " + "disableOnDoors (" + HOODSettings.disableOnDoors + ") - "
-                                + "dissallowedDoors (" + string.Join(",", HOODSettings.disallowedDoors) + ")");
-
-                        previousDoor = __instance;
-                    }
+                    string dissallowedDoors = "None";
+                    if (HOODSettings.disallowedDoors.Count > 0) string.Join(",", HOODSettings.disallowedDoors);
+                    L.Log(
+                        "Door properties: "
+                        + "Door name (" + doorName + ") - "
+                        + "hasPower (" + hasPower + ") - "
+                        + "HoldOpen (" + HoldOpen + ") - "
+                        + "Open (" + Open + ") - "
+                        + "blockedOpenMomentary (" + blockedOpenMomentary + ")"
+                        );
+                    L.Log(
+                        "HOOD settings: "
+                        + "checkPower (" + HOODSettings.checkPower + ") - "
+                        + "disableOnDoors (" + HOODSettings.disableOnDoors + ") - "
+                        + "dissallowedDoors (" + dissallowedDoors + ")"
+                        );
 
                     // If user has disabled checking for power
                     if (!HOODSettings.checkPower || (HOODSettings.checkPower && hasPower))
                     {
-                        bool? openState = null;
+                        bool openState = true; // Default to true to get around issue with multi-selected doors returning false for the very first door
                         int ticksUntilClose = 30;
                         int lastFriendlyTouch = 110;
 
-                        // Door should be opened/closed
-                        if (HoldOpen && !Open)
-                            openState = true;
-                        else if (!HoldOpen && Open && !blockedOpenMomentary)
+                        if (!HoldOpen && Open && !blockedOpenMomentary)
                             openState = false;
 
-                        if (openState.HasValue)
-                            ActionDoor(__instance, type, openState.Value, lastFriendlyTouch, ticksUntilClose);
+                        L.Log("Open State: " + openState.ToString());
+
+                        ActionDoor(door, type, openState, lastFriendlyTouch, ticksUntilClose);
                     }
                 }
             }
@@ -99,7 +134,7 @@ namespace HOOD
             bool pawnInteracting = false;
 
             var holdOpenInt_Field = AccessTools.Field(type, "holdOpenInt");
-            if (holdOpenInt_Field != null) // Avoid doing this on any structure other than a one with a hold open field
+            if (holdOpenInt_Field != null) // Avoid doing this on any structure other than one with a hold open field
             {
                 // Check adjacent cells for pawns trying to open the door
                 foreach (IntVec3 position in building.CellsAdjacent8WayAndInside())
@@ -111,10 +146,10 @@ namespace HOOD
                             && pawn.pather.Destination != null
                             && pawn.pather.nextCell != null
                             && (pawn.pather.Destination.Equals(building.Position) || pawn.pather.nextCell.Equals(building.Position)))
-                            // This may need adjusted to be for exactly what door the pawn is trying to open/close - this may need refactored
-                            {
-                                return true;
-                            }
+                        // This may need adjusted to be for exactly what door the pawn is trying to open/close - this may need refactored
+                        {
+                            return true;
+                        }
                     }
                 }
             }
@@ -125,26 +160,37 @@ namespace HOOD
         // Takes a building to allow for the possibility of overriding of Building_Door and mods not inheriting from Building_Door
         public static void ActionDoor(Building door, Type type, bool open, int lastFriendlyTouch, int ticksUntilCloseDoor)
         {
-            // Not using the button press of hold open so need to stop excess logging by checking the previous values, doesn't work for consecutive open/closes on same door which is not ideal (look at this later)
-            string log1 = "SetBuildingProperties - " + door.def.defName + " ---- " + open + " ---- " + lastFriendlyTouch;
-            if (!previousLog1.Equals(log1))
-                L.Log(log1);
-            previousLog1 = log1;
+            L.Log(
+                "Building Properties To Set: "
+                + "Open (" + open + ") - "
+                + "Last Friendly Touch Tick (" + lastFriendlyTouch + ") - "
+                + "Ticks Until Close (" + ticksUntilCloseDoor + ")");
 
             // Set fields
-            var openInt = AccessTools.Field(type, "openInt");
-            if (openInt != null) openInt.SetValue(door, open);
+            var openInt_Field = AccessTools.Field(type, "openInt");
+            if (openInt_Field != null) openInt_Field.SetValue(door, open);
 
-            var lastFriendlyTouchTick = AccessTools.Field(type, "lastFriendlyTouchTick");
-            if (lastFriendlyTouchTick != null) lastFriendlyTouchTick.SetValue(door, lastFriendlyTouch);
+            var lastFriendlyTouchTick_Field = AccessTools.Field(type, "lastFriendlyTouchTick");
+            if (lastFriendlyTouchTick_Field != null) lastFriendlyTouchTick_Field.SetValue(door, lastFriendlyTouch);
 
-            var ticksUntilClose = AccessTools.Field(type, "ticksUntilClose");
-            if (ticksUntilClose != null) ticksUntilClose.SetValue(door, ticksUntilCloseDoor);
+            var ticksUntilClose_Field = AccessTools.Field(type, "ticksUntilClose");
+            if (ticksUntilClose_Field != null) ticksUntilClose_Field.SetValue(door, ticksUntilCloseDoor);
 
-            string log2 = "ActionDoor - Actioned a door - " + openInt + " ---- " + lastFriendlyTouchTick + " ---- " + ticksUntilClose;
-            if (!previousLog2.Equals(log2))
-                L.Log(log2);
-            previousLog2 = log2;
+            // Call OpenDoor so invisible doors do not get out of sync
+            object[] parameters = new object[1];
+            parameters[0] = ticksUntilCloseDoor;
+            MethodInfo openDoorMethodInfo = AccessTools.Method(type, "DoorOpen");
+            if (openDoorMethodInfo != null)
+                openDoorMethodInfo.Invoke(door, parameters);
+
+            if (openInt_Field != null && lastFriendlyTouchTick_Field != null && ticksUntilClose_Field != null)
+                L.Log(
+                    "Building Properties Set: "
+                    + "Door name (" + door.def.defName + ") - "
+                    + "Open (" + openInt_Field.GetValue(door) + ") - "
+                    + "Last Friendly Touch Tick (" + lastFriendlyTouchTick_Field.GetValue(door) + ") - "
+                    + "Ticks Until Close (" + ticksUntilClose_Field.GetValue(door) + ")"
+                    );
 
             // Clear cache
             Find.CurrentMap.reachability.ClearCache();

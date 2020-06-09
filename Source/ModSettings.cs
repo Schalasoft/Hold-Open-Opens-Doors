@@ -11,17 +11,17 @@ namespace HOOD
 {
     public class HOODSettings : ModBase
     {
-        public override string ModIdentifier
-        {
-            get { return mModIdentifier; }
-        }
-
         private static string mModIdentifier = "Hold_Open_Opens_Doors";
 
         private List<SettingHandle<bool>> settingsList = new List<SettingHandle<bool>>();
         public static List<String> disallowedDoors = new List<String>();
         public static bool disableOnDoors = false;
         public static bool checkPower = true;
+
+        public override string ModIdentifier
+        {
+            get { return mModIdentifier; }
+        }
 
         // Main entry point for main menu
         public override void DefsLoaded()
@@ -109,7 +109,7 @@ namespace HOOD
         }
 
         // Dynamooo! Dynamic cast used for reflecting private fields from mod objects
-        public static T DynamicCast<T>(T obj) where T : class
+        private static T DynamicCast<T>(T obj) where T : class
         {
             var type = obj.GetType();
             return Activator.CreateInstance(type) as T;
