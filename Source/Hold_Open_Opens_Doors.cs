@@ -5,6 +5,7 @@ using System.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace HOOD
 {
@@ -24,40 +25,73 @@ namespace HOOD
     class Patch_GizmoGridDrawer
     {
         // DrawGizmoGrid is called twice so we only want to add each delegate once
+        private static bool doOncePerFunctionCall = true;
+       
+        // We only want to grab the selected doors once per selection
         private static bool doOnce = true;
+
+        // At least 1 door has been selected flag
+        private static bool doorSelected = false;
+
+        // The selected doors enumerator for passing into HOOD
+        private static IEnumerator<Building> selectedDoorsEnumerator = null;
+
         private static void Prefix(IEnumerable<Gizmo> gizmos)
         {
+            // Grab the selected doors once
             if (doOnce)
             {
-                // Not ideal getting the selected buildings that are likely doors each call
-                IEnumerable<Building> buildings = Find.Selector.SelectedObjects.Where(obj => AccessTools.Field(obj.GetType(), "holdOpenInt") != null).OfType<Building>();
-                var enumerator = buildings.GetEnumerator();
-                enumerator.MoveNext();
+                // If any doors have been selected, set the flag
+                doorSelected = Find.Selector.SelectedObjects.Any(obj => AccessTools.Field(obj.GetType(), "holdOpenInt") != null);
 
-                // Find and replace command toggle for Hold Open gizmo
-                foreach (Gizmo gizmo in gizmos)
-                {
-                    // Replace delegate for Hold Open
-                    Command_Toggle commandToggle = gizmo as Command_Toggle;
-                    if (commandToggle != null && commandToggle.icon == TexCommand.HoldOpen)
-                    {
-                        // Append to the toggle action
-                        Action customToggleAction = delegate ()
-                        {
-                            // Call HOOD code
-                            HoldOpenOpensDoors(enumerator.Current);
-                            enumerator.MoveNext();
-                        };
-                        commandToggle.toggleAction += customToggleAction;
-                    }
-                }
+                // Grab the selected doors if there is any
+                if(doorSelected)
+                    selectedDoorsEnumerator = GetSelectedDoors();
 
                 doOnce = false;
             }
-            else
+
+            // Only progress if at least 1 door has been selected
+            if (doorSelected)
             {
-                doOnce = true;
+                if (doOncePerFunctionCall)
+                {
+                    // Find and replace command toggle for Hold Open gizmo
+                    foreach (Gizmo gizmo in gizmos)
+                    {
+                        // Replace delegate for Hold Open
+                        if (gizmo is Command_Toggle && ((Command_Toggle)gizmo).Label.Equals("CommandToggleDoorHoldOpen".Translate()))
+                        {
+                            // Append to the toggle action
+                            Action customToggleAction = delegate ()
+                            {
+                                // Call HOOD code
+                                HoldOpenOpensDoors(selectedDoorsEnumerator.Current);
+
+                                // Check if we are done this selection, if so, reset the do once flag for the next selection
+                                if (selectedDoorsEnumerator.MoveNext() != true)
+                                    doOnce = true;
+                            };
+                            ((Command_Toggle)gizmo).toggleAction += customToggleAction;
+                        }
+                    }
+
+                    doOncePerFunctionCall = false;
+                }
+                else
+                {
+                    doOncePerFunctionCall = true;
+                }
             }
+        }
+
+        // Get the selected doors enumerator, already set to the first position in the enumerator
+        public static IEnumerator<Building> GetSelectedDoors()
+        {
+            IEnumerator<Building> enumerator = Find.Selector.SelectedObjects.Where(obj => AccessTools.Field(obj.GetType(), "holdOpenInt") != null).OfType<Building>().GetEnumerator();
+            enumerator.MoveNext();
+
+            return enumerator;
         }
 
         public static void HoldOpenOpensDoors(Building door)
