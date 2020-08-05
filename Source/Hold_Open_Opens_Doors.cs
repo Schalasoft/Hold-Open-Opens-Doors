@@ -20,6 +20,17 @@ namespace HOOD
         }
     }
 
+    // If the user left clicks, check for selected door(s) and get them
+    [HarmonyPatch(typeof(Selector))]
+    [HarmonyPatch("Select")]
+    class Patch_Selector
+    {
+        private static void Postfix()
+        {
+            Patch_GizmoGridDrawer.doOnce = true;
+        }
+    }
+
     [HarmonyPatch(typeof(GizmoGridDrawer))]
     [HarmonyPatch("DrawGizmoGrid")]
     class Patch_GizmoGridDrawer
@@ -28,7 +39,7 @@ namespace HOOD
         private static bool doOncePerFunctionCall = true;
        
         // We only want to grab the selected doors once per selection
-        private static bool doOnce = true;
+        public static bool doOnce = true;
 
         // At least 1 door has been selected flag
         private static bool doorSelected = false;
@@ -38,14 +49,13 @@ namespace HOOD
 
         private static void Prefix(IEnumerable<Gizmo> gizmos)
         {
-            // Grab the selected doors once
             if (doOnce)
             {
                 // If any doors have been selected, set the flag
                 doorSelected = Find.Selector.SelectedObjects.Any(obj => AccessTools.Field(obj.GetType(), "holdOpenInt") != null);
 
                 // Grab the selected doors if there is any
-                if(doorSelected)
+                if (doorSelected)
                     selectedDoorsEnumerator = GetSelectedDoors();
 
                 doOnce = false;
@@ -68,9 +78,12 @@ namespace HOOD
                                 // Call HOOD code
                                 HoldOpenOpensDoors(selectedDoorsEnumerator.Current);
 
-                                // Check if we are done this selection, if so, reset the do once flag for the next selection
-                                if (selectedDoorsEnumerator.MoveNext() != true)
-                                    doOnce = true;
+                                // Move to the next door
+                                if(selectedDoorsEnumerator.MoveNext() == false)
+                                {
+                                    // If we reach the end, go back to the start of the enumeration by reseting it
+                                    selectedDoorsEnumerator = GetSelectedDoors();
+                                }
                             };
                             ((Command_Toggle)gizmo).toggleAction += customToggleAction;
                         }
