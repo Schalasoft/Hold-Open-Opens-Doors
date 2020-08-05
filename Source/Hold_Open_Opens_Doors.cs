@@ -27,7 +27,7 @@ namespace HOOD
     {
         private static void Postfix()
         {
-            Patch_GizmoGridDrawer.doOnce = true;
+            Patch_GizmoGridDrawer.doOncePerSelect = true;
         }
     }
 
@@ -39,7 +39,7 @@ namespace HOOD
         private static bool doOncePerFunctionCall = true;
        
         // We only want to grab the selected doors once per selection
-        public static bool doOnce = true;
+        public static bool doOncePerSelect = true;
 
         // At least 1 door has been selected flag
         private static bool doorSelected = false;
@@ -47,9 +47,13 @@ namespace HOOD
         // The selected doors enumerator for passing into HOOD
         private static IEnumerator<Building> selectedDoorsEnumerator = null;
 
+        //
+        private static string holdOpenLabel = "CommandToggleDoorHoldOpen".Translate();
+
+        //
         private static void Prefix(IEnumerable<Gizmo> gizmos)
         {
-            if (doOnce)
+            if (doOncePerSelect)
             {
                 // If any doors have been selected, set the flag
                 doorSelected = Find.Selector.SelectedObjects.Any(obj => AccessTools.Field(obj.GetType(), "holdOpenInt") != null);
@@ -58,42 +62,43 @@ namespace HOOD
                 if (doorSelected)
                     selectedDoorsEnumerator = GetSelectedDoors();
 
-                doOnce = false;
+                doOncePerSelect = false;
+                doOncePerFunctionCall = true;
             }
 
             // Only progress if at least 1 door has been selected
             if (doorSelected)
             {
                 if (doOncePerFunctionCall)
+                    UpdateGizmos(gizmos);
+
+                doOncePerFunctionCall = !doOncePerFunctionCall;
+            }
+        }
+
+        //
+        private static void UpdateGizmos(IEnumerable<Gizmo> gizmos)
+        {
+            // Find and replace command toggle for Hold Open gizmo
+            foreach (Gizmo gizmo in gizmos)
+            {
+                // Replace delegate for Hold Open
+                if (gizmo is Command_Toggle && ((Command_Toggle)gizmo).Label.Equals(holdOpenLabel))
                 {
-                    // Find and replace command toggle for Hold Open gizmo
-                    foreach (Gizmo gizmo in gizmos)
+                    // Append to the toggle action
+                    Action customToggleAction = delegate ()
                     {
-                        // Replace delegate for Hold Open
-                        if (gizmo is Command_Toggle && ((Command_Toggle)gizmo).Label.Equals("CommandToggleDoorHoldOpen".Translate()))
+                        // Call HOOD code
+                        HoldOpenOpensDoors(selectedDoorsEnumerator.Current);
+
+                        // Move to the next door
+                        if (selectedDoorsEnumerator.MoveNext() == false)
                         {
-                            // Append to the toggle action
-                            Action customToggleAction = delegate ()
-                            {
-                                // Call HOOD code
-                                HoldOpenOpensDoors(selectedDoorsEnumerator.Current);
-
-                                // Move to the next door
-                                if(selectedDoorsEnumerator.MoveNext() == false)
-                                {
-                                    // If we reach the end, go back to the start of the enumeration by reseting it
-                                    selectedDoorsEnumerator = GetSelectedDoors();
-                                }
-                            };
-                            ((Command_Toggle)gizmo).toggleAction += customToggleAction;
+                            // If we reach the end, go back to the start of the enumeration by reseting it
+                            selectedDoorsEnumerator = GetSelectedDoors();
                         }
-                    }
-
-                    doOncePerFunctionCall = false;
-                }
-                else
-                {
-                    doOncePerFunctionCall = true;
+                    };
+                    ((Command_Toggle)gizmo).toggleAction += customToggleAction;
                 }
             }
         }
@@ -107,6 +112,7 @@ namespace HOOD
             return enumerator;
         }
 
+        //
         public static void HoldOpenOpensDoors(Building door)
         {
             // Get door name
