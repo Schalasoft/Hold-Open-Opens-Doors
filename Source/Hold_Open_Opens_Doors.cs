@@ -62,6 +62,8 @@ namespace HOOD
                 if (doorSelected)
                     selectedDoorsEnumerator = GetSelectedDoors();
 
+                L.Log($"Any door selected: {doorSelected}");
+
                 doOncePerSelect = false;
                 doOncePerFunctionCall = true;
             }
