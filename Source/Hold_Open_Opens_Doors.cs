@@ -37,7 +37,7 @@ namespace HOOD
     {
         // DrawGizmoGrid is called twice so we only want to add each delegate once
         private static bool doOncePerFunctionCall = true;
-       
+
         // We only want to grab the selected doors once per selection
         public static bool doOncePerSelect = true;
 
@@ -169,15 +169,9 @@ namespace HOOD
                     if (!HOODSettings.checkPower || (HOODSettings.checkPower && hasPower))
                     {
                         bool openState = true; // Default to true to get around issue with multi-selected doors returning false for the very first door
-                        int ticksUntilClose = 30;
-                        int lastFriendlyTouch = 110;
-
                         if (!HoldOpen && Open && !blockedOpenMomentary)
                             openState = false;
-
-                        L.Log("Open State: " + openState.ToString());
-
-                        ActionDoor(door, type, openState, lastFriendlyTouch, ticksUntilClose);
+                        ActionDoor(door, type, openState);
                     }
                 }
             }
@@ -213,39 +207,37 @@ namespace HOOD
         }
 
         // Takes a building to allow for the possibility of overriding of Building_Door and mods not inheriting from Building_Door
-        public static void ActionDoor(Building door, Type type, bool open, int lastFriendlyTouch, int ticksUntilCloseDoor)
+        public static void ActionDoor(Building door, Type type, bool targetOpenState)
         {
-            L.Log(
-                "Building Properties To Set: "
-                + "Open (" + open + ") - "
-                + "Last Friendly Touch Tick (" + lastFriendlyTouch + ") - "
-                + "Ticks Until Close (" + ticksUntilCloseDoor + ")");
-
-            // Set fields
             var openInt_Field = AccessTools.Field(type, "openInt");
-            if (openInt_Field != null) openInt_Field.SetValue(door, open);
-
-            var lastFriendlyTouchTick_Field = AccessTools.Field(type, "lastFriendlyTouchTick");
-            if (lastFriendlyTouchTick_Field != null) lastFriendlyTouchTick_Field.SetValue(door, lastFriendlyTouch);
-
             var ticksUntilClose_Field = AccessTools.Field(type, "ticksUntilClose");
-            if (ticksUntilClose_Field != null) ticksUntilClose_Field.SetValue(door, ticksUntilCloseDoor);
 
-            // Call OpenDoor so invisible doors do not get out of sync
-            object[] parameters = new object[1];
-            parameters[0] = ticksUntilCloseDoor;
-            MethodInfo openDoorMethodInfo = AccessTools.Method(type, "DoorOpen");
-            if (openDoorMethodInfo != null)
-                openDoorMethodInfo.Invoke(door, parameters);
+            L.Log("Building Properties To Set: Open (" + (openInt_Field?.GetValue(door) ?? "n/a") + " => " + targetOpenState + ")");
 
-            if (openInt_Field != null && lastFriendlyTouchTick_Field != null && ticksUntilClose_Field != null)
-                L.Log(
-                    "Building Properties Set: "
-                    + "Door name (" + door.def.defName + ") - "
-                    + "Open (" + openInt_Field.GetValue(door) + ") - "
-                    + "Last Friendly Touch Tick (" + lastFriendlyTouchTick_Field.GetValue(door) + ") - "
-                    + "Ticks Until Close (" + ticksUntilClose_Field.GetValue(door) + ")"
-                    );
+            // Call DoorOpen/DoorTryClose rather than set openInt field (so invisible doors in Doors Expanded do not get out of sync)
+            MethodInfo method;
+            if (targetOpenState)
+            {
+                method = AccessTools.Method(type, "DoorOpen");
+                method?.Invoke(door, new object[] { Type.Missing });
+            }
+            else
+            {
+                method = AccessTools.Method(type, "DoorTryClose");
+                var closeSuccess = (bool)(method?.Invoke(door, Array.Empty<object>()) ?? false);
+                // If couldn't close door, try setting door ticksUntilClose field to 1 to ensure door closes ASAP
+                // (note: if pawn is currently in the door, ticksUntilClose will reset to 110 on the next tick)
+                if (!closeSuccess)
+                    ticksUntilClose_Field?.SetValue(door, 1);
+            }
+
+            L.Log(
+                "Building Properties Set: "
+                + "Door name (" + door.def.defName + ") - "
+                + "Open (" + (openInt_Field?.GetValue(door) ?? "n/a") + ") - "
+                + "Ticks Until Close (" + (ticksUntilClose_Field?.GetValue(door) ?? "n/a") + ") - "
+                + "Method (" + method + ")"
+                );
 
             // Clear cache
             Find.CurrentMap.reachability.ClearCache();
