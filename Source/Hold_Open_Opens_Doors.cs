@@ -78,6 +78,7 @@ namespace HOOD
             if (!HOODSettings.disableOnDoors || (HOODSettings.disableOnDoors && !HOODSettings.disallowedDoors.Contains(doorName)))
             {
                 // Get the values of the fields and properties
+                // Fields and properties could be cached for performance, but this is not perf-critical code, so not bothering to do so
                 CompPowerTrader powerComp = (CompPowerTrader)AccessTools.Field(type, "powerComp")?.GetValue(door);
                 bool HoldOpen = (bool)(AccessTools.Field(type, "holdOpenInt")?.GetValue(door) ?? false);
                 bool Open = (bool)(AccessTools.Property(type, "Open")?.GetValue(door) ?? false);
@@ -115,6 +116,7 @@ namespace HOOD
         // Takes a Building to allow for the possibility of overriding of Building_Door and mods not inheriting from Building_Door
         private static void ActionDoor(Building door, Type type, bool targetOpenState)
         {
+            // Fields and properties could be cached for performance, but this is not perf-critical code, so not bothering to do so
             var openInt_Field = AccessTools.Field(type, "openInt");
             var ticksUntilClose_Field = AccessTools.Field(type, "ticksUntilClose");
 

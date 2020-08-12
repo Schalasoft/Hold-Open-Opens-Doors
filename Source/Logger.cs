@@ -3,7 +3,7 @@
     public static class L
     {
         public static bool loggingEnabled = false;
-        private static string logPrefix = "HOOD :: ";
+        private const string logPrefix = "HOOD :: ";
 
         public static void Log(string log)
         {
