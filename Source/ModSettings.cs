@@ -1,27 +1,24 @@
-﻿using HugsLib;
-using HugsLib.Settings;
-using Verse;
-using System.Linq;
+﻿using System;
 using System.Collections.Generic;
-using System;
+using System.Linq;
 using System.Reflection;
+using HugsLib;
+using HugsLib.Settings;
 using RimWorld;
+using Verse;
 
 namespace HOOD
 {
     public class HOODSettings : ModBase
     {
-        private static string mModIdentifier = "Hold_Open_Opens_Doors";
+        private const string mModIdentifier = "Hold_Open_Opens_Doors";
 
-        private List<SettingHandle<bool>> settingsList = new List<SettingHandle<bool>>();
-        public static List<String> disallowedDoors = new List<String>();
+        private readonly List<SettingHandle<bool>> settingsList = new List<SettingHandle<bool>>();
+        public static List<string> disallowedDoors = new List<string>();
         public static bool disableOnDoors = false;
         public static bool checkPower = true;
 
-        public override string ModIdentifier
-        {
-            get { return mModIdentifier; }
-        }
+        public override string ModIdentifier => mModIdentifier;
 
         // Main entry point for main menu
         public override void DefsLoaded()
@@ -42,26 +39,26 @@ namespace HOOD
         // Populate the settings menu with items, includings doors from core and mods
         private void PopulateSettings(List<ThingDef> things)
         {
-            Settings.GetHandle<bool>("CheckPower", "Enable power check", "When enabled this checks that the door has power to open/close (for added realism)", true);
-            Settings.GetHandle<bool>("DisableOnDoors", "Disable on selected doors", "When enabled this stops immediate opening/closing on the selected doors below (for added realism)", false);
-            Settings.GetHandle<bool>("EnableLogging", "Enable logging", "Enable logging", false);
+            Settings.GetHandle("CheckPower", "Enable power check", "When enabled this checks that the door has power to open/close (for added realism)", true);
+            Settings.GetHandle("DisableOnDoors", "Disable on selected doors", "When enabled this stops immediate opening/closing on the selected doors below (for added realism)", false);
+            Settings.GetHandle("EnableLogging", "Enable logging", "Enable logging", false);
 
             foreach (ThingDef thing in things)
             {
-                String className = thing.ToString();
+                string className = thing.ToString();
                 bool enabled = false;
                 //if (className.Equals("Door")) enabled = true; // Pre set door to be disabled for realism
 
                 if (thing.HasComp(typeof(CompPower))) enabled = true; // Pre set door to be enabled by default in list if it has power
-                
+
                 // Don't add Jecrells invisible door to the settings, but keep it in the list of doors for actioning
                 if (!thing.label.ToLower().Equals("invisible door"))
                 {
                     // Display name
-                    String displayName = thing.label;
-                    String description = thing.description;
+                    string displayName = thing.label;
+                    string description = thing.description;
 
-                    settingsList.Add(Settings.GetHandle<bool>(className, displayName, description, enabled));
+                    settingsList.Add(Settings.GetHandle(className, displayName, description, enabled));
                 }
             }
 
@@ -71,12 +68,12 @@ namespace HOOD
         // Update the enable logging flag, and also the Logger
         private void UpdateEnableLogging()
         {
-            Settings.GetHandle<bool>("EnableLogging", "Enable logging", "Enable logging", false); // set up the item before grabbing it, need to setup correctly
+            Settings.GetHandle("EnableLogging", "Enable logging", "Enable logging", false); // set up the item before grabbing it, need to setup correctly
             SettingHandle<bool> newEnableLogging = Settings.GetHandle<bool>("EnableLogging");
             if (newEnableLogging != null) L.loggingEnabled = newEnableLogging.Value;
         }
 
-        // Update the settings to reflect the new values, this then updates the list of dissallowed doors
+        // Update the settings to reflect the new values, this then updates the list of disallowed doors
         private void UpdateSettings()
         {
             L.Log("Settings updating...");
@@ -92,27 +89,20 @@ namespace HOOD
             L.Log("Settings updated!");
         }
 
-        // Update the list of dissallowed doors to contain the selected doors
+        // Update the list of disallowed doors to contain the selected doors
         private void UpdateDisallowedDoors()
         {
-            IEnumerable<SettingHandle<bool>> dissallowedDoorSettings = settingsList.Where<SettingHandle<bool>>(s => s != null && s.Value == true);
-            List<String> dissallowedDoorList = new List<String>();
+            IEnumerable<SettingHandle<bool>> disallowedDoorSettings = settingsList.Where(s => s != null && s.Value == true);
+            List<string> disallowedDoorList = new List<string>();
 
-            foreach(SettingHandle<bool> dissallowedDoorSetting in dissallowedDoorSettings)
+            foreach(SettingHandle<bool> disallowedDoorSetting in disallowedDoorSettings)
             {
-                String name = dissallowedDoorSetting.Name;
+                string name = disallowedDoorSetting.Name;
 
-                dissallowedDoorList.Add(name);
+                disallowedDoorList.Add(name);
             }
 
-            disallowedDoors = dissallowedDoorList;
-        }
-
-        // Dynamooo! Dynamic cast used for reflecting private fields from mod objects
-        private static T DynamicCast<T>(T obj) where T : class
-        {
-            var type = obj.GetType();
-            return Activator.CreateInstance(type) as T;
+            disallowedDoors = disallowedDoorList;
         }
 
         // Get all the door buildings from core, and from mods
@@ -120,9 +110,9 @@ namespace HOOD
         {
             // Get all buildings, filter down as much as possible to find buildings that 'may' be doors
             IEnumerable<ThingDef> thingDefs = DefDatabase<ThingDef>.AllDefs.Where<ThingDef>(def => def != null && def.building != null
-            && !def.IsBlueprint 
-            && !def.IsFrame 
-            && !def.IsMeat 
+            && !def.IsBlueprint
+            && !def.IsFrame
+            && !def.IsMeat
             && !def.IsWeapon
             && !def.IsMeleeWeapon
             && !def.IsWeaponUsingProjectiles
@@ -155,7 +145,7 @@ namespace HOOD
             && !def.building.isSittable // Chairs I guess
             && def.building.canPlaceOverWall // doors can be placed over walls, not much else can
             );
-            
+
             L.Log("Finding doors...");
 
             List<ThingDef> doors = new List<ThingDef>();
@@ -167,17 +157,12 @@ namespace HOOD
 
                     Thing thing = (Thing)Activator.CreateInstance(thingDef.thingClass);
 
-                    FieldInfo prop = null;
-                    var dynamo = DynamicCast(thing);
-                    if (dynamo != null)
-                    {
-                        prop = dynamo.GetType().GetField("holdOpenInt", BindingFlags.NonPublic | BindingFlags.Instance);
-                        if (prop == null) prop = dynamo.GetType().BaseType.GetField("holdOpenInt", BindingFlags.NonPublic | BindingFlags.Instance); // Try the base type
-                    }
+                    FieldInfo prop = thing.GetType().GetField("holdOpenInt", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (prop == null) prop = thing.GetType().BaseType.GetField("holdOpenInt", BindingFlags.NonPublic | BindingFlags.Instance); // Try the base type
 
                     if (prop != null || thingDef.defName.Equals("HeronInvisibleDoor"))
                     {
-                        String ohMy = "";
+                        string ohMy = "";
                         if (thingDef.defName.Equals("HeronInvisibleDoor"))
                             ohMy = " (invisible door handler? Let's dance...!) ";
 
@@ -189,7 +174,7 @@ namespace HOOD
 
             // Log door count
             LogDoorCount(doors.Count);
-            
+
             return doors;
         }
 
