@@ -26,7 +26,7 @@ namespace HOOD
         [HarmonyTargetMethods]
         private static IEnumerable<MethodBase> TargetMethods()
         {
-            var targetMethods = GenTypes.AllSubclasses(typeof(Building))
+            var targetMethods = GenTypes.AllTypes
                 .Where(type => AccessTools.Field(type, "holdOpenInt") != null)
                 .Select(type => AccessTools.Method(type, nameof(Building.GetGizmos)).GetDeclaredMember())
                 .Distinct();
